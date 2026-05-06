@@ -10,15 +10,32 @@ public class DungeonGenerator : MonoBehaviour
     [Header("Random Walk Settings")]
     [SerializeField] private int walkSteps = 200;
 
+    [Header("Rooms")]
+    [SerializeField] private int roomCount = 5;
+    [SerializeField] private int minRoomSize = 4;
+    [SerializeField] private int maxRoomSize = 7;
+
+    [Header("Corridor Width")]
+    [SerializeField] private bool widenCorridors = true;
+
     [Header("Prefabs")]
     [SerializeField] private GameObject floorPrefab;
     [SerializeField] private GameObject wallPrefab;
+    [SerializeField] private float wallHeight = 3f;
 
-    // The grid: true = floor, false = empty (will become wall)
+    [Header("Entities")]
+    [SerializeField] private GameObject playerObject;
+    [SerializeField] private GameObject bossPrefab;
+    [SerializeField] private GameObject enemyPrefab;
+    [SerializeField] private int enemyCount = 5;
+    [SerializeField] private int safeRadius = 5;
+
     private bool[,] grid;
-
-    // Parent transform to keep the Hierarchy tidy
     private Transform dungeonParent;
+
+    // Calculated by BFS
+    private Vector2Int spawnCell;
+    private Vector2Int bossCell;
 
     private void Start()
     {
@@ -27,18 +44,14 @@ public class DungeonGenerator : MonoBehaviour
 
     private void GenerateDungeon()
     {
-        // Create a parent object so spawned tiles are nested tidily
         GameObject parentGO = new GameObject("Dungeon");
         dungeonParent = parentGO.transform;
 
-        // Step 1: Create the empty grid
         grid = new bool[gridWidth, gridHeight];
 
-        // Step 2: Start the walker at the centre
         Vector2Int walker = new Vector2Int(gridWidth / 2, gridHeight / 2);
         grid[walker.x, walker.y] = true;
 
-        // Step 3: Take walkSteps random steps
         for (int i = 0; i < walkSteps; i++)
         {
             int direction = Random.Range(0, 4);
@@ -62,11 +75,79 @@ public class DungeonGenerator : MonoBehaviour
 
             walker = newPos;
             grid[walker.x, walker.y] = true;
+
+            // Stamp a room periodically along the walk
+            if (roomCount > 0 && i % (walkSteps / roomCount) == 0)
+            {
+                StampRoom(walker);
+            }
         }
 
-        // Step 4: Spawn a floor tile for every cell marked true
+        // Widen 1-tile corridors to 3-tile corridors so the player can dodge
+        if (widenCorridors)
+        {
+            WidenCorridors();
+        }
+
+        int floorCount = 0;
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (grid[x, y]) floorCount++;
+            }
+        }
+
+        Debug.Log($"Dungeon generated. Floor cells: {floorCount} out of {gridWidth * gridHeight}");
+
         SpawnFloors();
         SpawnWalls();
+        FindSpawnAndBoss();
+        SpawnEntities();
+    }
+
+    private void StampRoom(Vector2Int centre)
+    {
+        int width = Random.Range(minRoomSize, maxRoomSize + 1);
+        int height = Random.Range(minRoomSize, maxRoomSize + 1);
+
+        int startX = centre.x - width / 2;
+        int startY = centre.y - height / 2;
+
+        for (int x = startX; x < startX + width; x++)
+        {
+            for (int y = startY; y < startY + height; y++)
+            {
+                if (x < 1 || x >= gridWidth - 1 || y < 1 || y >= gridHeight - 1) continue;
+                grid[x, y] = true;
+            }
+        }
+    }
+
+    private void WidenCorridors()
+    {
+        bool[,] snapshot = new bool[gridWidth, gridHeight];
+        for (int x = 0; x < gridWidth; x++)
+            for (int y = 0; y < gridHeight; y++)
+                snapshot[x, y] = grid[x, y];
+
+        Vector2Int[] directions = new Vector2Int[]
+        {
+            new Vector2Int(0, 1), new Vector2Int(0, -1),
+            new Vector2Int(1, 0), new Vector2Int(-1, 0)
+        };
+
+        for (int x = 1; x < gridWidth - 1; x++)
+        {
+            for (int y = 1; y < gridHeight - 1; y++)
+            {
+                if (!snapshot[x, y]) continue;
+                foreach (Vector2Int dir in directions)
+                {
+                    grid[x + dir.x, y + dir.y] = true;
+                }
+            }
+        }
     }
 
     private void SpawnFloors()
@@ -77,37 +158,33 @@ public class DungeonGenerator : MonoBehaviour
             {
                 if (grid[x, y])
                 {
-                    // Convert grid coordinates to world position.
-                    // Grid Y becomes world Z (because we're top-down).
                     Vector3 worldPos = new Vector3(x, 0, y);
                     Instantiate(floorPrefab, worldPos, Quaternion.identity, dungeonParent);
                 }
             }
         }
     }
-    private void SpawnWalls()
-{
-    // Loop through every cell in the grid
-    for (int x = 0; x < gridWidth; x++)
-    {
-        for (int y = 0; y < gridHeight; y++)
-        {
-            // Skip floor cells - we only place walls in empty cells
-            if (grid[x, y]) continue;
 
-            // Check if this empty cell has any floor neighbour
-            if (HasFloorNeighbour(x, y))
+    private void SpawnWalls()
+    {
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
             {
-                Vector3 worldPos = new Vector3(x, 0.5f, y);
-                Instantiate(wallPrefab, worldPos, Quaternion.identity, dungeonParent);
+                if (grid[x, y]) continue;
+
+                if (HasFloorNeighbour(x, y))
+                {
+                    Vector3 worldPos = new Vector3(x, wallHeight / 2f, y);
+                    GameObject wall = Instantiate(wallPrefab, worldPos, Quaternion.identity, dungeonParent);
+                    wall.transform.localScale = new Vector3(1, wallHeight, 1);
+                }
             }
         }
     }
-}
 
-private bool HasFloorNeighbour(int x, int y)
+    private bool HasFloorNeighbour(int x, int y)
     {
-        // Check the 4 cardinal neighbours: N, S, E, W
         Vector2Int[] directions = new Vector2Int[]
         {
             new Vector2Int(0, 1),
@@ -121,13 +198,119 @@ private bool HasFloorNeighbour(int x, int y)
             int nx = x + dir.x;
             int ny = y + dir.y;
 
-            // Make sure the neighbour is inside the grid
             if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight) continue;
-
-            // If the neighbour is a floor, this empty cell should be a wall
             if (grid[nx, ny]) return true;
         }
 
         return false;
+    }
+
+    private int[,] BFS(Vector2Int start)
+    {
+        int[,] distances = new int[gridWidth, gridHeight];
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                distances[x, y] = -1;
+            }
+        }
+
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        distances[start.x, start.y] = 0;
+        queue.Enqueue(start);
+
+        Vector2Int[] directions = new Vector2Int[]
+        {
+            new Vector2Int(0, 1),
+            new Vector2Int(0, -1),
+            new Vector2Int(1, 0),
+            new Vector2Int(-1, 0)
+        };
+
+        while (queue.Count > 0)
+        {
+            Vector2Int current = queue.Dequeue();
+            int currentDist = distances[current.x, current.y];
+
+            foreach (Vector2Int dir in directions)
+            {
+                Vector2Int neighbour = current + dir;
+
+                if (neighbour.x < 0 || neighbour.x >= gridWidth ||
+                    neighbour.y < 0 || neighbour.y >= gridHeight) continue;
+
+                if (!grid[neighbour.x, neighbour.y]) continue;
+                if (distances[neighbour.x, neighbour.y] != -1) continue;
+
+                distances[neighbour.x, neighbour.y] = currentDist + 1;
+                queue.Enqueue(neighbour);
+            }
+        }
+
+        return distances;
+    }
+
+    private void FindSpawnAndBoss()
+    {
+        Vector2Int spawn = new Vector2Int(gridWidth / 2, gridHeight / 2);
+        int[,] distances = BFS(spawn);
+
+        Vector2Int boss = spawn;
+        int maxDist = 0;
+
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (distances[x, y] > maxDist)
+                {
+                    maxDist = distances[x, y];
+                    boss = new Vector2Int(x, y);
+                }
+            }
+        }
+
+        Debug.Log($"Spawn at {spawn}, Boss at {boss}, distance: {maxDist}");
+
+        spawnCell = spawn;
+        bossCell = boss;
+    }
+
+    private void SpawnEntities()
+    {
+        Vector3 spawnWorldPos = new Vector3(spawnCell.x, 1f, spawnCell.y);
+        playerObject.transform.position = spawnWorldPos;
+
+        Vector3 bossWorldPos = new Vector3(bossCell.x, 1f, bossCell.y);
+        Instantiate(bossPrefab, bossWorldPos, Quaternion.identity, dungeonParent);
+
+        int[,] distances = BFS(spawnCell);
+
+        List<Vector2Int> validCells = new List<Vector2Int>();
+        for (int x = 0; x < gridWidth; x++)
+        {
+            for (int y = 0; y < gridHeight; y++)
+            {
+                if (!grid[x, y]) continue;
+                if (distances[x, y] < safeRadius) continue;
+                if (x == bossCell.x && y == bossCell.y) continue;
+                validCells.Add(new Vector2Int(x, y));
+            }
+        }
+
+        int spawned = 0;
+        while (spawned < enemyCount && validCells.Count > 0)
+        {
+            int index = Random.Range(0, validCells.Count);
+            Vector2Int cell = validCells[index];
+            validCells.RemoveAt(index);
+
+            Vector3 enemyWorldPos = new Vector3(cell.x, 1f, cell.y);
+            Instantiate(enemyPrefab, enemyWorldPos, Quaternion.identity, dungeonParent);
+            spawned++;
+        }
+
+        Debug.Log($"Spawned player at {spawnCell}, boss at {bossCell}, {spawned} enemies.");
     }
 }
