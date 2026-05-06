@@ -3,56 +3,46 @@ using UnityEngine;
 
 public class DungeonGenerator : MonoBehaviour
 {
-    [Header("Grid Settings")]
-    [SerializeField] private int gridWidth = 30;
-    [SerializeField] private int gridHeight = 30;
-
-    [Header("Random Walk Settings")]
-    [SerializeField] private int walkSteps = 200;
-
-    [Header("Rooms")]
-    [SerializeField] private int roomCount = 5;
-    [SerializeField] private int minRoomSize = 4;
-    [SerializeField] private int maxRoomSize = 7;
-
-    [Header("Corridor Width")]
-    [SerializeField] private bool widenCorridors = true;
+    [Header("Level Configuration")]
+    [SerializeField] private LevelData levelData;
 
     [Header("Prefabs")]
     [SerializeField] private GameObject floorPrefab;
     [SerializeField] private GameObject wallPrefab;
-    [SerializeField] private float wallHeight = 3f;
 
     [Header("Entities")]
     [SerializeField] private GameObject playerObject;
     [SerializeField] private GameObject bossPrefab;
     [SerializeField] private GameObject enemyPrefab;
-    [SerializeField] private int enemyCount = 5;
-    [SerializeField] private int safeRadius = 5;
 
     private bool[,] grid;
     private Transform dungeonParent;
 
-    // Calculated by BFS
     private Vector2Int spawnCell;
     private Vector2Int bossCell;
 
     private void Start()
     {
+        if (levelData == null)
+        {
+            Debug.LogError("DungeonGenerator: No LevelData assigned!");
+            return;
+        }
+
         GenerateDungeon();
     }
 
     private void GenerateDungeon()
     {
-        GameObject parentGO = new GameObject("Dungeon");
+        GameObject parentGO = new GameObject($"Dungeon ({levelData.levelName})");
         dungeonParent = parentGO.transform;
 
-        grid = new bool[gridWidth, gridHeight];
+        grid = new bool[levelData.gridWidth, levelData.gridHeight];
 
-        Vector2Int walker = new Vector2Int(gridWidth / 2, gridHeight / 2);
+        Vector2Int walker = new Vector2Int(levelData.gridWidth / 2, levelData.gridHeight / 2);
         grid[walker.x, walker.y] = true;
 
-        for (int i = 0; i < walkSteps; i++)
+        for (int i = 0; i < levelData.walkSteps; i++)
         {
             int direction = Random.Range(0, 4);
             Vector2Int step = Vector2Int.zero;
@@ -67,8 +57,8 @@ public class DungeonGenerator : MonoBehaviour
 
             Vector2Int newPos = walker + step;
 
-            if (newPos.x < 1 || newPos.x >= gridWidth - 1 ||
-                newPos.y < 1 || newPos.y >= gridHeight - 1)
+            if (newPos.x < 1 || newPos.x >= levelData.gridWidth - 1 ||
+                newPos.y < 1 || newPos.y >= levelData.gridHeight - 1)
             {
                 continue;
             }
@@ -76,29 +66,23 @@ public class DungeonGenerator : MonoBehaviour
             walker = newPos;
             grid[walker.x, walker.y] = true;
 
-            // Stamp a room periodically along the walk
-            if (roomCount > 0 && i % (walkSteps / roomCount) == 0)
+            if (levelData.roomCount > 0 && i % (levelData.walkSteps / levelData.roomCount) == 0)
             {
                 StampRoom(walker);
             }
         }
 
-        // Widen 1-tile corridors to 3-tile corridors so the player can dodge
-        if (widenCorridors)
+        if (levelData.widenCorridors)
         {
             WidenCorridors();
         }
 
         int floorCount = 0;
-        for (int x = 0; x < gridWidth; x++)
-        {
-            for (int y = 0; y < gridHeight; y++)
-            {
+        for (int x = 0; x < levelData.gridWidth; x++)
+            for (int y = 0; y < levelData.gridHeight; y++)
                 if (grid[x, y]) floorCount++;
-            }
-        }
 
-        Debug.Log($"Dungeon generated. Floor cells: {floorCount} out of {gridWidth * gridHeight}");
+        Debug.Log($"[{levelData.levelName}] Floor cells: {floorCount} / {levelData.gridWidth * levelData.gridHeight}");
 
         SpawnFloors();
         SpawnWalls();
@@ -108,8 +92,8 @@ public class DungeonGenerator : MonoBehaviour
 
     private void StampRoom(Vector2Int centre)
     {
-        int width = Random.Range(minRoomSize, maxRoomSize + 1);
-        int height = Random.Range(minRoomSize, maxRoomSize + 1);
+        int width = Random.Range(levelData.minRoomSize, levelData.maxRoomSize + 1);
+        int height = Random.Range(levelData.minRoomSize, levelData.maxRoomSize + 1);
 
         int startX = centre.x - width / 2;
         int startY = centre.y - height / 2;
@@ -118,7 +102,7 @@ public class DungeonGenerator : MonoBehaviour
         {
             for (int y = startY; y < startY + height; y++)
             {
-                if (x < 1 || x >= gridWidth - 1 || y < 1 || y >= gridHeight - 1) continue;
+                if (x < 1 || x >= levelData.gridWidth - 1 || y < 1 || y >= levelData.gridHeight - 1) continue;
                 grid[x, y] = true;
             }
         }
@@ -126,9 +110,9 @@ public class DungeonGenerator : MonoBehaviour
 
     private void WidenCorridors()
     {
-        bool[,] snapshot = new bool[gridWidth, gridHeight];
-        for (int x = 0; x < gridWidth; x++)
-            for (int y = 0; y < gridHeight; y++)
+        bool[,] snapshot = new bool[levelData.gridWidth, levelData.gridHeight];
+        for (int x = 0; x < levelData.gridWidth; x++)
+            for (int y = 0; y < levelData.gridHeight; y++)
                 snapshot[x, y] = grid[x, y];
 
         Vector2Int[] directions = new Vector2Int[]
@@ -137,9 +121,9 @@ public class DungeonGenerator : MonoBehaviour
             new Vector2Int(1, 0), new Vector2Int(-1, 0)
         };
 
-        for (int x = 1; x < gridWidth - 1; x++)
+        for (int x = 1; x < levelData.gridWidth - 1; x++)
         {
-            for (int y = 1; y < gridHeight - 1; y++)
+            for (int y = 1; y < levelData.gridHeight - 1; y++)
             {
                 if (!snapshot[x, y]) continue;
                 foreach (Vector2Int dir in directions)
@@ -152,9 +136,9 @@ public class DungeonGenerator : MonoBehaviour
 
     private void SpawnFloors()
     {
-        for (int x = 0; x < gridWidth; x++)
+        for (int x = 0; x < levelData.gridWidth; x++)
         {
-            for (int y = 0; y < gridHeight; y++)
+            for (int y = 0; y < levelData.gridHeight; y++)
             {
                 if (grid[x, y])
                 {
@@ -167,17 +151,17 @@ public class DungeonGenerator : MonoBehaviour
 
     private void SpawnWalls()
     {
-        for (int x = 0; x < gridWidth; x++)
+        for (int x = 0; x < levelData.gridWidth; x++)
         {
-            for (int y = 0; y < gridHeight; y++)
+            for (int y = 0; y < levelData.gridHeight; y++)
             {
                 if (grid[x, y]) continue;
 
                 if (HasFloorNeighbour(x, y))
                 {
-                    Vector3 worldPos = new Vector3(x, wallHeight / 2f, y);
+                    Vector3 worldPos = new Vector3(x, levelData.wallHeight / 2f, y);
                     GameObject wall = Instantiate(wallPrefab, worldPos, Quaternion.identity, dungeonParent);
-                    wall.transform.localScale = new Vector3(1, wallHeight, 1);
+                    wall.transform.localScale = new Vector3(1, levelData.wallHeight, 1);
                 }
             }
         }
@@ -187,34 +171,26 @@ public class DungeonGenerator : MonoBehaviour
     {
         Vector2Int[] directions = new Vector2Int[]
         {
-            new Vector2Int(0, 1),
-            new Vector2Int(0, -1),
-            new Vector2Int(1, 0),
-            new Vector2Int(-1, 0)
+            new Vector2Int(0, 1), new Vector2Int(0, -1),
+            new Vector2Int(1, 0), new Vector2Int(-1, 0)
         };
 
         foreach (Vector2Int dir in directions)
         {
             int nx = x + dir.x;
             int ny = y + dir.y;
-
-            if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight) continue;
+            if (nx < 0 || nx >= levelData.gridWidth || ny < 0 || ny >= levelData.gridHeight) continue;
             if (grid[nx, ny]) return true;
         }
-
         return false;
     }
 
     private int[,] BFS(Vector2Int start)
     {
-        int[,] distances = new int[gridWidth, gridHeight];
-        for (int x = 0; x < gridWidth; x++)
-        {
-            for (int y = 0; y < gridHeight; y++)
-            {
+        int[,] distances = new int[levelData.gridWidth, levelData.gridHeight];
+        for (int x = 0; x < levelData.gridWidth; x++)
+            for (int y = 0; y < levelData.gridHeight; y++)
                 distances[x, y] = -1;
-            }
-        }
 
         Queue<Vector2Int> queue = new Queue<Vector2Int>();
         distances[start.x, start.y] = 0;
@@ -222,10 +198,8 @@ public class DungeonGenerator : MonoBehaviour
 
         Vector2Int[] directions = new Vector2Int[]
         {
-            new Vector2Int(0, 1),
-            new Vector2Int(0, -1),
-            new Vector2Int(1, 0),
-            new Vector2Int(-1, 0)
+            new Vector2Int(0, 1), new Vector2Int(0, -1),
+            new Vector2Int(1, 0), new Vector2Int(-1, 0)
         };
 
         while (queue.Count > 0)
@@ -236,10 +210,8 @@ public class DungeonGenerator : MonoBehaviour
             foreach (Vector2Int dir in directions)
             {
                 Vector2Int neighbour = current + dir;
-
-                if (neighbour.x < 0 || neighbour.x >= gridWidth ||
-                    neighbour.y < 0 || neighbour.y >= gridHeight) continue;
-
+                if (neighbour.x < 0 || neighbour.x >= levelData.gridWidth ||
+                    neighbour.y < 0 || neighbour.y >= levelData.gridHeight) continue;
                 if (!grid[neighbour.x, neighbour.y]) continue;
                 if (distances[neighbour.x, neighbour.y] != -1) continue;
 
@@ -247,21 +219,19 @@ public class DungeonGenerator : MonoBehaviour
                 queue.Enqueue(neighbour);
             }
         }
-
         return distances;
     }
 
     private void FindSpawnAndBoss()
     {
-        Vector2Int spawn = new Vector2Int(gridWidth / 2, gridHeight / 2);
+        Vector2Int spawn = new Vector2Int(levelData.gridWidth / 2, levelData.gridHeight / 2);
         int[,] distances = BFS(spawn);
 
         Vector2Int boss = spawn;
         int maxDist = 0;
-
-        for (int x = 0; x < gridWidth; x++)
+        for (int x = 0; x < levelData.gridWidth; x++)
         {
-            for (int y = 0; y < gridHeight; y++)
+            for (int y = 0; y < levelData.gridHeight; y++)
             {
                 if (distances[x, y] > maxDist)
                 {
@@ -272,7 +242,6 @@ public class DungeonGenerator : MonoBehaviour
         }
 
         Debug.Log($"Spawn at {spawn}, Boss at {boss}, distance: {maxDist}");
-
         spawnCell = spawn;
         bossCell = boss;
     }
@@ -288,19 +257,19 @@ public class DungeonGenerator : MonoBehaviour
         int[,] distances = BFS(spawnCell);
 
         List<Vector2Int> validCells = new List<Vector2Int>();
-        for (int x = 0; x < gridWidth; x++)
+        for (int x = 0; x < levelData.gridWidth; x++)
         {
-            for (int y = 0; y < gridHeight; y++)
+            for (int y = 0; y < levelData.gridHeight; y++)
             {
                 if (!grid[x, y]) continue;
-                if (distances[x, y] < safeRadius) continue;
+                if (distances[x, y] < levelData.safeRadius) continue;
                 if (x == bossCell.x && y == bossCell.y) continue;
                 validCells.Add(new Vector2Int(x, y));
             }
         }
 
         int spawned = 0;
-        while (spawned < enemyCount && validCells.Count > 0)
+        while (spawned < levelData.enemyCount && validCells.Count > 0)
         {
             int index = Random.Range(0, validCells.Count);
             Vector2Int cell = validCells[index];
