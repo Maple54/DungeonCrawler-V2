@@ -16,10 +16,10 @@ MonoBehaviour:
   gridWidth: 30
   gridHeight: 30
   walkSteps: 200
-  roomCount: 5
+  roomCount: 4
   minRoomSize: 4
-  maxRoomSize: 7
+  maxRoomSize: 6
   widenCorridors: 1
   wallHeight: 3
-  enemyCount: 5
+  enemyCount: 4
   safeRadius: 5

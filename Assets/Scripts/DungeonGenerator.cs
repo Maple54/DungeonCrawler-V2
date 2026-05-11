@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.AI.Navigation; 
+
 
 public class DungeonGenerator : MonoBehaviour
 {
@@ -88,6 +90,8 @@ public class DungeonGenerator : MonoBehaviour
         SpawnWalls();
         FindSpawnAndBoss();
         SpawnEntities();
+
+        GetComponent<NavMeshSurface>().BuildNavMesh();
     }
 
     private void StampRoom(Vector2Int centre)

@@ -4,59 +4,42 @@ public class LevelManager : MonoBehaviour
 {
     public static LevelManager Instance { get; private set; }
 
-    [Header("Level setup")]
-    [SerializeField] private GameObject bossDoor;
+    [Header("Enemy Tracking")]
+    [SerializeField] private int enemyCount;
 
-    private int aliveEnemyCount;
-    private bool bossUnlocked;
-
-    public bool BossUnlocked => bossUnlocked;
+    [Header("Boss Door")]
+    [SerializeField] private BossDoor bossDoor;
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         Instance = this;
     }
 
-    private void Start()
+    public void RegisterEnemy()
     {
-        // Count only non-boss enemies — the boss is tracked separately
-        EnemyScoreReward[] rewards = FindObjectsByType<EnemyScoreReward>(FindObjectsSortMode.None);
-        aliveEnemyCount = 0;
-
-        foreach (EnemyScoreReward reward in rewards)
-        {
-            if (!reward.IsBoss) aliveEnemyCount++;
-        }
-
-        if (bossDoor != null) bossDoor.SetActive(true);
-
-        Debug.Log($"Level started with {aliveEnemyCount} regular enemies (boss tracked separately).");
+        enemyCount++;
     }
 
-    public void OnEnemyDefeated()
+    public void EnemyDied()
     {
-        aliveEnemyCount--;
-        Debug.Log($"Enemy defeated. Remaining: {aliveEnemyCount}");
+        enemyCount--;
 
-        if (aliveEnemyCount <= 0 && !bossUnlocked)
+        if (enemyCount <= 0)
         {
-            UnlockBoss();
+            CheckRoomClear();
         }
     }
 
-    public void OnBossDefeated()
+    private void CheckRoomClear()
     {
-        Debug.Log("Boss defeated! Victory!");
-        if (GameManager.Instance != null)
+        if (bossDoor != null)
         {
-            GameManager.Instance.EndRun(true);
+            bossDoor.Open();
         }
-    }
-
-    private void UnlockBoss()
-    {
-        bossUnlocked = true;
-        if (bossDoor != null) bossDoor.SetActive(false);
-        Debug.Log("Boss room unlocked!");
     }
 }

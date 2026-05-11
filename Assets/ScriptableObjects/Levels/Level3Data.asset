@@ -13,13 +13,13 @@ MonoBehaviour:
   m_Name: Level3Data
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   levelName: Level 1
-  gridWidth: 30
-  gridHeight: 30
-  walkSteps: 200
-  roomCount: 5
-  minRoomSize: 4
-  maxRoomSize: 7
+  gridWidth: 50
+  gridHeight: 50
+  walkSteps: 500
+  roomCount: 8
+  minRoomSize: 5
+  maxRoomSize: 8
   widenCorridors: 1
   wallHeight: 3
-  enemyCount: 5
-  safeRadius: 5
+  enemyCount: 10
+  safeRadius: 6

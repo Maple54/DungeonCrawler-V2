@@ -744,6 +744,56 @@ MonoBehaviour:
   onDeath:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &591829349
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 591829351}
+  - component: {fileID: 591829350}
+  m_Layer: 0
+  m_Name: DungeonGenerator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &591829350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 591829349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1dc0124ce681848b59add30544f2b558, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DungeonGenerator
+  levelData: {fileID: 11400000, guid: c09e121721a494034b9f61a52e3b13aa, type: 2}
+  floorPrefab: {fileID: 7879992739957448678, guid: 6a04be1f1c059489f88f4aee35fb0aa8, type: 3}
+  wallPrefab: {fileID: 2997656990326453377, guid: e7ecfa7b0372d4e2ca1845a244c7a0e0, type: 3}
+  playerObject: {fileID: 415969830}
+  bossPrefab: {fileID: 8698928990385766134, guid: 49bc426b173f947269daf7d50c57721b, type: 3}
+  enemyPrefab: {fileID: 105633546911533019, guid: 853f4ffbf5bbd482dbe05965b31d6a7f, type: 3}
+--- !u!4 &591829351
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 591829349}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1266,3 +1316,4 @@ SceneRoots:
   - {fileID: 239277733}
   - {fileID: 1474174850}
   - {fileID: 2028428978}
+  - {fileID: 591829351}
